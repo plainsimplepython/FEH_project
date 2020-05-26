@@ -17,70 +17,62 @@ html = urlopen(url, context=ctx).read()
 soup = BeautifulSoup(html, "html.parser")
 
 
-''' gets hero info table:
- 1st row: name and title
- 2nd row: portrait art
- 3rd row: description
- 4th row: rarity
- 5th row: weapon type
- 6th row: movement type
- 7th row: voice actor EN
- 8th row: voice actor JP
- 9th row: release date
-10th row: addition date
-11th row: game appearance
-12th row: ???
-13th row: origin?
+''' 
+hero info dict keys:
+    Name (& title)
+    Images (Portrait, Attack, Special, Injured) 3 sizes for each
+    Description
+    Rarities (& aquisition method)
+    Effect (blessing type)
+    Ally Boost (blessing bonus)
+    Duo Skill
+    Standard Effect 1: Duel
+    Standard Effect 2: Pair Up
+    Weapon Type
+    Move Type
+    Voice Actor EN
+    Voice Actor JP
+    Release Date
+    Appears in
+    Internal ID
+    Origin
 '''
 hero_info_table = soup.find('table', class_="wikitable hero-infobox")
 character_data = hero_info_table.find_all('tr')
 
+character_dict = {}
+for i, data in enumerate(character_data):
+    # NAME and TITLE dont have a proper label
+    if i is 0:
+        name = []
+        for element in data.find_all('span'):
+            name.append(element.text)
 
-## character NAME and TITLE
-name = []
-for i in character_data[0].find_all('span'):
-    name.append(i.text)
-# TODO debug msg
-print("Name and Title:", name)
-
-
-## character IMAGES
-image_table_data = character_data[1].find_all("img")
-# search for image links in each 'img' tag
-image_list = re.findall("https://[^ ]+", str(image_table_data))
-# 3 sizes per image
-# TODO debug msg
-print("Character Portraits:", image_list, sep='\n')
+        character_dict['Name'] = name
 
 
-## character DESCRIPTION
-description_header = character_data[2].find('th').text.strip()
-# gets description data text
-description = character_data[2].find('td').text.strip()
-# TODO debug msg
-print(description_header, description, sep=': ')
+    ## character IMAGES, also lacks a label
+    elif i is 1:
+        image_table_data = data.find_all("img")
+        # search for image links in each 'img' tag
+        image_list = re.findall("https://[^ ]+", str(image_table_data))
+
+        # 3 sizes per image
+        character_dict['Images'] = image_list
+
+    # get keys and values for the rest of the character data
+    else:
+        if data.find('th'):
+            hero_info_header = data.find('th').text.strip()
+
+        if data.find('td'):
+            hero_info_data = data.find('td').text.strip()
+
+        character_dict[hero_info_header] = hero_info_data
 
 
-## RARITY
-rarity_header = character_data[3].find('th').text.strip()
-# gets which rarities character can be acquired at
-rarity = character_data[3].find('td').text.strip()
-# TODO debug msg
-print(rarity_header, rarity, sep=': ')
-
-
-## Weapon Type
-weapon_type_header = character_data[4].find('th').text.strip()
-weapon_type = character_data[4].find('td').text.strip()
-# TODO debug msg
-print(weapon_type_header, weapon_type, sep=': ')
-
-
-## Movement Type
-movement_type_header = character_data[5].find('th').text.strip()
-movement_type = character_data[5].find('td').text.strip()
-# TODO debug msg
-print(movement_type_header, movement_type, sep=': ', end='\n\n')
+{print(f"{key}: {value}") for key, value in character_dict.items()}
+print()
 
 
 
@@ -98,116 +90,104 @@ stat_labels = [label.text for label in stats_rows[0].find_all('th')]
 # TODO debug msg
 print(stat_labels)
 
-# TODO make into a dict?
 ## get Level 40 Stats
 level_40_stats = [stat.text for stat in stats_rows[-1].find_all('td')]
 # TODO debug msg
 print(level_40_stats)
 
+character_stats = {}
+for key, value in zip(stat_labels, level_40_stats):
+    character_stats[key] = value
+
+character_dict['stats'] = character_stats
+
 
 
 ## WEAPONS
-''' finds the <span> tag with 'Weapons'
+''' 
+ finds the <span> tag with 'Weapons'
  retrieves the table following 'Weapons' tag 
- gets and prints table row header/data '''
+ gets and prints table row header/data 
+'''
 weapons_marker = soup.find('span', id="Weapons")
-print()
+
 # weapon header
+print()
 print(weapons_marker.text)
 
+# get weapon table
 weapons_table = weapons_marker.find_next('table')
-weapons_rows = weapons_table.find_all('tr')
-
-table_size = len(weapons_rows)
 weapons = []
-# TODO iterate directly over table.find_all('tr')?
-for i in range(table_size):
-    weapons_row = weapons_rows[i]
 
-    weapons_table_header = weapons_row.find_all('th')
-    table_data = weapons_row.find_all('td')
+for row in weapons_table.find_all('tr'):
+    # weapons_table_header = row.find_all('th')
+    weapons_table_data = row.find_all('td')
 
     ## getting table data by row to display for debugging
-    table_header = [data.text.strip() for data in weapons_table_header]
-    table_data = [data.text.strip() for data in table_data]
+    # weapons_header = [data.text.strip() for data in weapons_table_header]
+    weapons_data = [data.text.strip() for data in weapons_table_data]
 
     # getting each weapon data
     # skip first row, only contains headers and no table data
-    if i is not 0:
-        weapons.append(table_data)
+    if len(weapons_data) != 0:
+        weapons.append(weapons_data)
 
 
 weapon_labels = [label.text for label in weapons_table.find_all('th')]
 print(weapon_labels)
 [print(weapon) for weapon in weapons]
 
+character_dict['weapons'] = weapons
 
 
-# TODO check for - title="List of evolving weapons"
+## WEAPON UPGRADES
 upgrades = weapons_marker.find_next('p')
-# upgrades_exist = upgrades.find("a", title="List of evolving weapons")
-# print(upgrades_exist)
+
 if upgrades:
-    # upgrade_images = [image['src'] for image in upgrades.find_all('img')]
-    # TODO handle case where upgrades exist but no images?
     upgrade_image_list = upgrades.find_all("img")
     upgrade_images = re.findall("https://[^ ]+", str(upgrade_image_list))
-    # TODO print each image set in separate rows
-    # TODO with image headers?
+
     ## gets all of the upgrade info
     # TODO split upgrade text sentences into list
     # TODO extra spaces in upgrade test are image locations?
     print(upgrades.text.strip())
     print("Weapon Upgrade Icons:", upgrade_images, sep='\n')
-    # print(upgrade_image_list)
 else:
     print("No weapon upgrades.")
 
 
-# TODO trying to get the weapon upgrade from the <a> "title="
-# tags = upgrades.find_all('a')
-# [print(tag) for tag in tags]
-# print(tags)
-
-
-# for a_tag in upgrades.find_all('a'):
-#     print(a_tag)
-#     print(a_tag.text)
-#     print(a_tag.nextSibling)
-#     print()
-
-
 
 ## ASSISTS
-''' finds the <span> tag with 'Assists'
+''' 
+ finds the <span> tag with 'Assists'
  retrieves the table following 'Assists' tag 
- gets and prints table row header/data '''
+ gets and prints table row header/data
+'''
 
+# locate ASSIST table
 assists_marker = soup.find(id="Assists")
 print()
 print(assists_marker.text)
 
-# check if hero has ASSIST skills or not
+# check if hero has ASSIST skills
 assists_table = assists_marker.find_next('div').text
 if assists_table == "This Hero owns no Assist skills.":
     print(assists_table)
+
+# retrieving them if they exist
 else:
     assists_table = assists_marker.find_next('table')
     assists = []
 
     for row in assists_table.find_all('tr'):
-        table_header = row.find_all('th')
-        table_data = row.find_all('td')
+        assists_table_data = row.find_all('td')
 
-        table_header = [data.text.strip() for data in table_header]
-        table_data = [data.text.strip() for data in table_data]
+        assists_data = [data.text.strip() for data in assists_table_data]
 
-        if len(table_data) != 0:
-            assists.append(table_data)
+        if len(assists_data) != 0:
+            assists.append(assists_data)
 
     # TODO debug msgs
-    assists_label = [label.text for label in assists_table.find_all('th')]
-    print(assists_label)
     [print(assist) for assist in assists]
 
 
@@ -217,27 +197,28 @@ else:
  retrieves the table following 'Specials' tag 
  gets and prints table row header/data '''
 
+# locate SPECIAL table
 specials_marker = soup.find(id="Specials")
 print()
 print(specials_marker.text)
 
-
+# check if hero has SPECIAL skills
 specials_table = specials_marker.find_next('div').text
 if specials_table == "This Hero owns no Special skills.":
     print(specials_table)
+
+# retrieving them if they exist
 else:
     specials_table = specials_marker.find_next('table')
     specials = []
 
     for row in specials_table.find_all('tr'):
-        table_header = row.find_all('th')
-        table_data = row.find_all('td')
+        specials_table_data = row.find_all('td')
 
-        table_header = [data.text.strip() for data in table_header]
-        table_data = [data.text.strip() for data in table_data]
+        specials_data = [data.text.strip() for data in specials_table_data]
 
-        if len(table_data) != 0:
-            specials.append(table_data)
+        if len(specials_data) != 0:
+            specials.append(specials_data)
 
     # TODO debug msgs
     specials_label = [label.text for label in specials_table.find_all('th')]
@@ -253,55 +234,33 @@ else:
 
 # TODO get passive images, empty 1st element is skill image
 passives_marker = soup.find(id="Passives")
-table = passives_marker.find_next('table')
-rows = table.find_all('tr')
+passives_table = passives_marker.find_next('table')
 
 passives = []
-table_size = len(rows)
-for i in range(table_size):
-    id_row = rows[i]
+for row in passives_table.find_all('tr'):
+    passives_table_data = row.find_all('td')
 
-    table_header = id_row.find_all('th')
-    table_data = id_row.find_all('td')
+    # TODO get passive skill icons?
+    # passive_icons_raw = row.find_all("img")
+    # passive_icon_images = re.findall("https://[^ ]+", str(passive_icons_raw))
+    # print(passive_icon_images)
 
-    table_header = [data.text.strip() for data in table_header]
+    passives_data = [data.text.strip() for data in passives_table_data if data.text is not '']
 
-    # TODO get passive skill icons
-    passive_icons_raw = id_row.find_all("img")
-    passive_icon_images = re.findall("https://[^ ]+", str(passive_icons_raw))
-    # TODO incomplete, fix for passives
-    # print(upgrades.text.strip())
-    # print("Weapon Upgrade Icons:", upgrade_images, sep='\n')
-
-    # TODO change to check either for img or text
-    table_data = [data.text.strip() for data in table_data if data.text is not '']
-
-    if len(table_data) != 0:
-        # TODO if text table data is empty get images and append to passives
-    #     # TODO append skill icon first
-    #     passives.append(passive_icon_images)
-    # else:
-        passives.append(table_data)
-
-#     print("tr:", id_row)
-#     print("row text:", id_row.text)
-#     print("th:", table_header)
-#     print("td:", table_data)
-#     print()
-# print(rows)
+    if passives_data:
+        passives.append(passives_data)
 
 print()
 print(passives_marker.text)
 # prints label
-print([label.text for label in table.find_all('th') if label.text is not ''])
-for element in passives:
-    print(element)
-# [print(passive) for passive in passives]
+print([label.text for label in passives_table.find_all('th') if label.text is not ''])
+for passive in passives:
+    print(passive)
 
 
 
-
-
+import Create_Database
+Create_Database.create_database(character_dict)
 
 
 
@@ -309,13 +268,30 @@ for element in passives:
 ''' Useful Project Links:
 https://feheroes.gamepedia.com/Fir:_Sword_Student
 https://feheroes.gamepedia.com/Micaiah:_Queen_of_Dawn
+
 Special Summon test:
 https://feheroes.gamepedia.com/Fir:_Student_of_Spring
+https://feheroes.gamepedia.com/Rafiel:_Blessed_Wings
+
 GHB test:
 https://feheroes.gamepedia.com/Berkut:_Prideful_Prince
+
 TT test:
 https://feheroes.gamepedia.com/Black_Knight:_Sinister_General
 
+Duo Unit test:
+https://feheroes.gamepedia.com/Micaiah:_Dawn_Wind%27s_Duo
+
+pre Pair-Up Legendary test:
+https://feheroes.gamepedia.com/Hector:_Marquess_of_Ostia
+
+Pair-Up Legendary test:
+https://feheroes.gamepedia.com/Celica:_Queen_of_Valentia
+
+Mythic:
+https://feheroes.gamepedia.com/Yune:_Chaos_Goddess
+
+Additional tables:
 https://feheroes.gamepedia.com/Hero_skills_table
 https://feheroes.gamepedia.com/Level_40_stats_table
 https://feheroes.gamepedia.com/List_of_Heroes
