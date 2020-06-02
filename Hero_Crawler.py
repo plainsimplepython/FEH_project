@@ -46,7 +46,6 @@ def hero_crawler(url):
         Specials
         Passives
     '''
-    # TODO handle rarity/acquisition of normal units
     hero_info_table = soup.find('table', class_="wikitable hero-infobox")
     character_data = hero_info_table.find_all('tr')
 
@@ -70,20 +69,23 @@ def hero_crawler(url):
             # 3 sizes per image
             character_dict['Images'] = image_list
 
-        ## character rarity and acquisition text needs to be cleaned up and separated
+
+        ## character RARITY and ACQUISITION text needs to be cleaned up and separated
         elif i is 3:
+            # get the key for the rarity row
             if data.find('th'):
                 rarity_key = data.find('th').text.strip()
 
+            # get rarity data for the row
             if data.find('td'):
-                rarity_acquisition = data.find('td').text.strip()
+                rarity_data = data.find('td').text.strip()
 
                 # remove random 'Focus' from rarity string
-                rarity_acquisition = rarity_acquisition.replace('Focus', '')
+                rarity_data = rarity_data.replace('Focus', '')
                 # remove random '*' from rarity string
-                rarity_acquisition = rarity_acquisition.replace('*', '')
+                rarity_data = rarity_data.replace('*', '')
                 # separate hero rarities and acquisition
-                rarity_acquisition = rarity_acquisition.split('—')
+                rarity_acquisition = rarity_data.split('—')
 
             # add hero rarities to dict
             character_dict[rarity_key] = rarity_acquisition[0].strip()
@@ -92,6 +94,7 @@ def hero_crawler(url):
             if len(rarity_acquisition) > 1:
                 acquisition = rarity_acquisition[1].strip()
             character_dict['Acquisition'] = acquisition
+
 
         # get keys and values for the rest of the character data
         else:
@@ -104,48 +107,54 @@ def hero_crawler(url):
             character_dict[hero_info_header] = hero_info_data
 
 
+    # TODO debug msg
     {print(f"{key}: {value}") for key, value in character_dict.items()}
     print()
 
 
 
-
     ## character LEVEL 40 STATS
-    # find stat file marker
+    # locate Level 40 STAT table
     stats_marker = soup.find(id='Level_40_stats')
-    # stat header label
     print(stats_marker.text)
+
     # get the stats table after the stat marker
     stats_table = stats_marker.find_next('table')
     stats_rows = stats_table.find_all('tr')
 
-    ## get Level 40 Stat LABELS
+    ## get Level 40 Stat LABELS from first row
     stat_labels = [label.text for label in stats_rows[0].find_all('th')]
     # TODO debug msg
     print(stat_labels)
 
-    ## get Level 40 Stats
+    ## get Level 40 Stats from last row
     level_40_stats = [stat.text for stat in stats_rows[-1].find_all('td')]
     # TODO debug msg
     print(level_40_stats)
 
+
+    ''' 
+    stats:
+        hp
+        atk
+        spd
+        def
+        res
+        total
+    '''
+    # add each stat key, value into stats dict
     character_stats = {}
     for key, value in zip(stat_labels, level_40_stats):
         character_stats[key] = value
 
+    # finally add character stats to the dict
     character_dict['Stats'] = character_stats
 
 
 
     ## WEAPONS
-    ''' 
-     finds the <span> tag with 'Weapons'
-     retrieves the table following 'Weapons' tag 
-     gets and prints table row header/data 
-    '''
+    # locate WEAPON table
     weapons_marker = soup.find('span', id="Weapons")
-
-    # weapon header
     print()
     print(weapons_marker.text)
 
@@ -172,10 +181,12 @@ def hero_crawler(url):
     print(weapon_labels)
     [print(weapon) for weapon in weapons]
 
+    # add weapon CSV to character dict
     character_dict['Weapons'] = ', '.join(weapons)
 
 
     ## WEAPON UPGRADES
+    # TODO will get weapon upgrades from Skill_Crawler
     upgrades = weapons_marker.find_next('p')
 
     if upgrades:
@@ -193,12 +204,6 @@ def hero_crawler(url):
 
 
     ## ASSISTS
-    ''' 
-     finds the <span> tag with 'Assists'
-     retrieves the table following 'Assists' tag 
-     gets and prints table row header/data
-    '''
-
     # locate ASSIST table
     assists_marker = soup.find(id="Assists")
     print()
@@ -232,10 +237,6 @@ def hero_crawler(url):
 
 
     ## SPECIALS
-    ''' finds the <span> tag with 'Specials'
-     retrieves the table following 'Specials' tag 
-     gets and prints table row header/data '''
-
     # locate SPECIAL table
     specials_marker = soup.find(id="Specials")
     print()
@@ -272,11 +273,7 @@ def hero_crawler(url):
 
 
     ## PASSIVES
-    ''' finds the <span> tag with 'Passives'
-     retrieves the table following 'Passives' tag 
-     gets and prints table row header/data '''
-
-    # passive images, empty 1st element is skill image
+    # locate PASSIVES table
     passives_marker = soup.find(id="Passives")
     print()
     print(passives_marker.text)
@@ -303,6 +300,7 @@ def hero_crawler(url):
             # passive_icon_images = re.findall("https://[^ ]+", str(passive_icons_raw))
             # print(passive_icon_images)
 
+            # empty 1st element is skill image
             passives_data = [data.text.strip() for data in passives_table_data if data.text is not '']
 
             if passives_data:
@@ -356,6 +354,10 @@ Additional tables:
 https://feheroes.gamepedia.com/Hero_skills_table
 https://feheroes.gamepedia.com/Level_40_stats_table
 https://feheroes.gamepedia.com/List_of_Heroes
+https://feheroes.gamepedia.com/Weapons
+https://feheroes.gamepedia.com/Weapons_(full)
+https://feheroes.gamepedia.com/Assists
+https://feheroes.gamepedia.com/Specials
 https://feheroes.gamepedia.com/Passives
 
 Web App:

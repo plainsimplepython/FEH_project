@@ -3,6 +3,10 @@ import sqlite3
 
 # TODO remove drop table clauses
 def create_database(data):
+    '''
+    Takes a character data dict and enters all character info into a database entry
+    '''
+
     connection = sqlite3.connect('./FEH_characters.db')
     cursor = connection.cursor()
 
@@ -48,47 +52,53 @@ def create_database(data):
         pass
 
 
-    # cursor.execute('DROP TABLE IF EXISTS Character_Stats')
-    # cursor.execute('''CREATE TABLE Character_Stats (stats_id INTEGER PRIMARY KEY,
-    #                                                 hp TEXT,
-    #                                                 atk TEXT,
-    #                                                 spd TEXT,
-    #                                                 def TEXT,
-    #                                                 res TEXT,
-    #                                                 total TEXT)''')
 
-
-
-
-
-    # add NAME and TITLE
+    # Name and Title
     name = data.get('Name')[0]
     title = data.get('Name')[1]
-    portrait = data.get('Images')[2]
-    attack = data.get('Images')[5]
-    special = data.get('Images')[8]
+
+    # Images
+    portrait = data.get('Images')[2]    # getting the largest size of each image type
+    attack = data.get('Images')[5]      # 3 size per images type:
+    special = data.get('Images')[8]     # portrait, attack, special, injured
     injured = data.get('Images')[11]
+
+    # Description
     description = data.get('Description')
+
+    # Rarity and Acquisition
     rarity = data.get('Rarities')
     acquisition = data.get('Acquisition')
+
+    # Blessing data
     blessing_type = None
     if data.get('Effect'):
         blessing_type = data.get('Effect')
+
     blessing_boost = None
     if data.get('Ally Boost'):
         blessing_boost = data.get('Ally Boost')
+
+    # Duo Skill
     duo_skill = None
     if data.get('Duo Skill'):
         duo_skill = data.get('Duo Skill')
+
+    # Duel bonus
     duel = None
     if data.get('Standard Effect 1: Duel'):
         duel = data.get('Standard Effect 1: Duel')     # TODO change key to just 'Duel'?
+
+    # Pair-Up
     pair_up = None
     if data.get('Standard Effect 2: Pair Up'):
         pair_up = data.get('Standard Effect 2: Pair Up')  # TODO change key to just 'Pair Up'?
+
+    # Weapon and Movement classifications
     weapon_type = data.get('Weapon Type')
     move_type = data.get('Move Type')
 
+    # Stats
     stats = data.get('Stats')
     char_hp = stats.get('HP')
     char_atk = stats.get('Atk')
@@ -97,17 +107,15 @@ def create_database(data):
     char_res = stats.get('Res')
     char_total = stats.get('Total')
 
+    # Skills
     weapons = data.get('Weapons')
-
     assists = data.get('Assists')
-
     specials = data.get('Specials')
-
     passives = data.get('Passives')
 
 
 
-
+    # add character images
     cursor.execute('''INSERT INTO Character_Images (portrait,
                                                     attack, 
                                                     special,
@@ -118,28 +126,13 @@ def create_database(data):
                                                     special,
                                                     injured))
 
-    # var = image_id ''; image_id = 'select max(image_id) from character_images';
 
+    ## retrieve PK of last entry
     image_id = cursor.lastrowid
     # print(image_id)
 
 
-    # cursor.execute('''INSERT INTO Character_Stats (hp,
-    #                                                atk,
-    #                                                spd,
-    #                                                def,
-    #                                                res,
-    #                                                total)
-    #                         VALUES (?, ?, ?, ?, ?, ?)''',
-    #                                               (char_hp,
-    #                                                char_atk,
-    #                                                char_spd,
-    #                                                char_def,
-    #                                                char_res,
-    #                                                char_total))
-    #
-    # stats_id = cursor.lastrowid
-
+    # add character information to database
     cursor.execute('''INSERT INTO Character (name, 
                                              title,
                                              image_id,
@@ -187,10 +180,5 @@ def create_database(data):
                                              assists,
                                              specials,
                                              passives))
-
-
-
-
-
 
     connection.commit()
