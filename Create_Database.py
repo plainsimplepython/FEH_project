@@ -1,46 +1,61 @@
 import sqlite3
 
 
+# TODO remove drop table clauses
 def create_database(data):
     connection = sqlite3.connect('./FEH_characters.db')
     cursor = connection.cursor()
 
-    cursor.execute('DROP TABLE IF EXISTS Character')
-    cursor.execute('''CREATE TABLE Character (id INTEGER PRIMARY KEY,
-                                           name TEXT,
-                                           title TEXT,
-                                           image_id INT UNIQUE, 
-                                           description TEXT, 
-                                           rarity TEXT,
-                                           acquisition TEXT, 
-                                           blessing_type TEXT,
-                                           blessing_boost TEXT,
-                                           duo_skill TEXT,
-                                           duel TEXT,
-                                           pair_up TEXT, 
-                                           weapon_type TEXT, 
-                                           move_type TEXT,
-                                           stats_id INT UNIQUE,
-                                           FOREIGN KEY (image_id) REFERENCES Character_Images (image_id),
-                                           FOREIGN KEY (stats_id) REFERENCES Character_Stats (stats_id))''')
+    # cursor.execute('DROP TABLE IF EXISTS Character')
+    try:
+        cursor.execute('''CREATE TABLE Character (id INTEGER PRIMARY KEY,
+                                                  name TEXT,
+                                                  title TEXT,
+                                                  image_id INT UNIQUE,
+                                                  description TEXT,
+                                                  rarity TEXT,
+                                                  acquisition TEXT,
+                                                  blessing_type TEXT,
+                                                  blessing_boost TEXT,
+                                                  duo_skill TEXT,
+                                                  duel TEXT,
+                                                  pair_up TEXT,
+                                                  weapon_type TEXT,
+                                                  move_type TEXT,
+                                                  hp TEXT,
+                                                  atk TEXT,
+                                                  spd TEXT,
+                                                  def TEXT,
+                                                  res TEXT,
+                                                  total TEXT,
+                                                  weapons TEXT,
+                                                  assists TEXT,
+                                                  specials TEXT,
+                                                  passives TEXT,
+                                                  FOREIGN KEY (image_id) REFERENCES Character_Images (image_id))''')
+    except sqlite3.OperationalError:
+        pass
 
 
-    cursor.execute('DROP TABLE IF EXISTS Character_Images')
-    cursor.execute('''CREATE TABLE Character_Images (image_id INTEGER PRIMARY KEY,
-                                                  portrait TEXT,
-                                                  attack TEXT, 
-                                                  special TEXT,
-                                                  injured TEXT)''')
+    # cursor.execute('DROP TABLE IF EXISTS Character_Images')
+    try:    # TODO compress image table into CSV string?
+        cursor.execute('''CREATE TABLE Character_Images (image_id INTEGER PRIMARY KEY,
+                                                      portrait TEXT,
+                                                      attack TEXT, 
+                                                      special TEXT,
+                                                      injured TEXT)''')
+    except sqlite3.OperationalError:
+        pass
 
 
-    cursor.execute('DROP TABLE IF EXISTS Character_Stats')
-    cursor.execute('''CREATE TABLE Character_Stats (stats_id INTEGER PRIMARY KEY,
-                                                    hp TEXT, 
-                                                    atk TEXT,
-                                                    spd TEXT,
-                                                    def TEXT,
-                                                    res TEXT,
-                                                    total TEXT)''')
+    # cursor.execute('DROP TABLE IF EXISTS Character_Stats')
+    # cursor.execute('''CREATE TABLE Character_Stats (stats_id INTEGER PRIMARY KEY,
+    #                                                 hp TEXT,
+    #                                                 atk TEXT,
+    #                                                 spd TEXT,
+    #                                                 def TEXT,
+    #                                                 res TEXT,
+    #                                                 total TEXT)''')
 
 
 
@@ -54,9 +69,8 @@ def create_database(data):
     special = data.get('Images')[8]
     injured = data.get('Images')[11]
     description = data.get('Description')
-    rarity_acquisition = data.get('Rarities').split('—')    # TODO remove word 'focus' from rarity text?
-    rarity = rarity_acquisition[0].strip()
-    acquisition = rarity_acquisition[1].strip()
+    rarity = data.get('Rarities')
+    acquisition = data.get('Acquisition')
     blessing_type = None
     if data.get('Effect'):
         blessing_type = data.get('Effect')
@@ -75,7 +89,7 @@ def create_database(data):
     weapon_type = data.get('Weapon Type')
     move_type = data.get('Move Type')
 
-    stats = data.get('stats')
+    stats = data.get('Stats')
     char_hp = stats.get('HP')
     char_atk = stats.get('Atk')
     char_spd = stats.get('Spd')
@@ -83,7 +97,14 @@ def create_database(data):
     char_res = stats.get('Res')
     char_total = stats.get('Total')
 
-    weapons = data.get('weapons')
+    weapons = data.get('Weapons')
+
+    assists = data.get('Assists')
+
+    specials = data.get('Specials')
+
+    passives = data.get('Passives')
+
 
 
 
@@ -103,21 +124,21 @@ def create_database(data):
     # print(image_id)
 
 
-    cursor.execute('''INSERT INTO Character_Stats (hp,
-                                                   atk,
-                                                   spd,
-                                                   def,
-                                                   res,
-                                                   total)
-                            VALUES (?, ?, ?, ?, ?, ?)''',
-                                                  (char_hp,
-                                                   char_atk,
-                                                   char_spd,
-                                                   char_def,
-                                                   char_res,
-                                                   char_total))
-
-    stats_id = cursor.lastrowid
+    # cursor.execute('''INSERT INTO Character_Stats (hp,
+    #                                                atk,
+    #                                                spd,
+    #                                                def,
+    #                                                res,
+    #                                                total)
+    #                         VALUES (?, ?, ?, ?, ?, ?)''',
+    #                                               (char_hp,
+    #                                                char_atk,
+    #                                                char_spd,
+    #                                                char_def,
+    #                                                char_res,
+    #                                                char_total))
+    #
+    # stats_id = cursor.lastrowid
 
     cursor.execute('''INSERT INTO Character (name, 
                                              title,
@@ -132,8 +153,17 @@ def create_database(data):
                                              pair_up, 
                                              weapon_type, 
                                              move_type,
-                                             stats_id)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                                             hp, 
+                                             atk, 
+                                             spd, 
+                                             def, 
+                                             res, 
+                                             total, 
+                                             weapons,
+                                             assists,
+                                             specials,
+                                             passives)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
                                             (name,
                                              title,
                                              image_id,
@@ -147,7 +177,16 @@ def create_database(data):
                                              pair_up,
                                              weapon_type,
                                              move_type,
-                                             stats_id))
+                                             char_hp,
+                                             char_atk,
+                                             char_spd,
+                                             char_def,
+                                             char_res,
+                                             char_total,
+                                             weapons,
+                                             assists,
+                                             specials,
+                                             passives))
 
 
 
