@@ -60,3 +60,59 @@ while not hero_list.empty():
     # have hero_crawler scrape the data from the character page
     hero_crawler(full_url)
 
+
+
+# TODO skill crawler
+## TODO move into passive web crawler code
+# table_markers = soup.find_all(class_="mw-headline")
+# passive_table = table_markers[0].find_next('table')
+#
+#
+# # print(passive_table)
+# passive_rows = passive_table.find_all('tr')
+# # print(passive_rows)
+#
+# # go through passive table gathering each passive url and name
+# for i, row in enumerate(passive_rows):
+#     if i != 0:
+#         passive_data = row.find_all('td')
+#         # print(passive_data)
+#         for i, column in enumerate(passive_data):
+#             if i == 1:
+#                 # passive_name = column.text.strip()
+#                 # print(passive_name)
+#                 passive_link = column.find('a')
+#                 print(passive_link)
+#                 link = passive_link.get('href')
+#                 print(link)
+#                 name = passive_link.text.strip()
+#                 print(name)
+
+
+
+## QUEUE stuff
+# passive_list_text_raw = [links.text for links in passive_table.find_all('a', title=True)]
+# # print(passive_list_text_raw)
+# passive_list = Queue()
+#
+# filter_list = ['adjacent', 'combat', 'initiates', 'initiates combat', 'during combat', 'cooldown charge', 'follow-up', 'within 2 spaces', 'Sol', 'Special cooldown', 'turn']
+# for passive in passive_list_text_raw:
+#     if not any(filter_term in passive for filter_term in filter_list):
+#         passive_list.put(passive)
+#
+# print(list(passive_list.queue))
+#
+# while not passive_list.empty():
+
+
+## GATHERS UNIQUE PASSIVE LINKS
+# passive_set = set([links.get('href') for links in passive_table.find_all('a', href=True) if '/File:' not in links.get('href')])
+# # [print(passive) for passive in passive_set]
+#
+# filtered_list = []
+# filter_list = ['/Adjacent', '/Combat', '/Combat_boosts', '/Combat_Buffs', '/Initiates', '/Cooldown', '/Follow-up']
+# for passive in passive_set:
+#     if not any(filter_term in passive for filter_term in filter_list):
+#         filtered_list.append(passive)
+#
+# [print(passive) for passive in filtered_list]

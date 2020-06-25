@@ -272,6 +272,7 @@ def hero_crawler(url):
 
 
 
+    # TODO did passive format change?
     ## PASSIVES
     # locate PASSIVES table
     passives_marker = soup.find(id="Passives")
@@ -309,6 +310,7 @@ def hero_crawler(url):
 
 
         # prints label
+        # TODO get headers only from first row?
         print([label.text for label in passives_table.find_all('th') if label.text is not ''])
         for passive in passives:
             print(passive)
@@ -359,6 +361,9 @@ https://feheroes.gamepedia.com/Weapons_(full)
 https://feheroes.gamepedia.com/Assists
 https://feheroes.gamepedia.com/Specials
 https://feheroes.gamepedia.com/Passives
+https://feheroes.gamepedia.com/Merge_Allies
+
+https://feheroes.gamepedia.com/Category:Refresher_Assists
 
 Web App:
 https://github.com/feh-stuff/feh-stuff.github.io
