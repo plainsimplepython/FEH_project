@@ -3,9 +3,12 @@
 # and unzip it in the same directory as this file
 
 from urllib.request import urlopen
+
+import Query_DB
 from bs4 import BeautifulSoup
 import ssl
 import re
+from Skill_Data_Scraper import weapon_scraper
 
 
 def hero_crawler(url):
@@ -51,8 +54,8 @@ def hero_crawler(url):
 
     character_dict = {}
     for i, data in enumerate(character_data):
-        # NAME and TITLE dont have a proper label
-        if i is 0:
+        ## NAME and TITLE don't have a proper label
+        if i == 0:
             name = []
             for element in data.find_all('span'):
                 name.append(element.text)
@@ -61,7 +64,7 @@ def hero_crawler(url):
 
 
         ## character IMAGES, also lacks a label
-        elif i is 1:
+        elif i == 1:
             image_table_data = data.find_all("img")
             # search for image links in each 'img' tag
             image_list = re.findall("https://[^ ]+", str(image_table_data))
@@ -71,7 +74,7 @@ def hero_crawler(url):
 
 
         ## character RARITY and ACQUISITION text needs to be cleaned up and separated
-        elif i is 3:
+        elif i == 3:
             # get the key for the rarity row
             if data.find('th'):
                 rarity_key = data.find('th').text.strip()
@@ -84,7 +87,7 @@ def hero_crawler(url):
                 rarity_data = rarity_data.replace('Focus', '')
                 # remove random '*' from rarity string
                 rarity_data = rarity_data.replace('*', '')
-                # separate hero rarities and acquisition
+                # separate hero rarities and acquisition, uses a special type of dash character
                 rarity_acquisition = rarity_data.split('—')
 
             # add hero rarities to dict
@@ -113,7 +116,10 @@ def hero_crawler(url):
 
 
 
-    ## character LEVEL 40 STATS
+
+    ############################
+    #####  LEVEL 40 STATS  #####
+    ############################
     # locate Level 40 STAT table
     stats_marker = soup.find(id='Level_40_stats')
     print(stats_marker.text)
@@ -152,7 +158,11 @@ def hero_crawler(url):
 
 
 
-    ## WEAPONS
+    # TODO get weapon name links (href), some links differ from weapon name (in cases of overlapping names)
+    # TODO pass both weapon link and name to weapon_scraper()
+    #####################
+    #####  WEAPONS  #####
+    #####################
     # locate WEAPON table
     weapons_marker = soup.find('span', id="Weapons")
     print()
@@ -161,6 +171,7 @@ def hero_crawler(url):
     # get weapon table
     weapons_table = weapons_marker.find_next('table')
     weapons = []
+    weapon_name_and_url = []
 
     for row in weapons_table.find_all('tr'):
         # weapons_table_header = row.find_all('th')
@@ -170,40 +181,43 @@ def hero_crawler(url):
         # weapons_header = [data.text.strip() for data in weapons_table_header]
         weapons_data = [data.text.strip() for data in weapons_table_data]
 
-        # getting each weapon data
-        # skip first row, only contains headers and no table data
+        ## getting each weapon data
+        ## skip first row, only contains headers and no table data
         if len(weapons_data) != 0:
             # weapons.append(weapons_data)  # gets all weapon data
             weapons.append(weapons_data[0]) # we only want to know the names of all weapons the character has
+            weapon_name_and_url.append( (weapons_data[0], row.find('a')['href']) ) # get weapon links, some weapons have overlapping names (Falchion, Naga)
 
 
     weapon_labels = [label.text for label in weapons_table.find_all('th')]
     print(weapon_labels)
-    [print(weapon) for weapon in weapons]
+    print(weapons)
+    # print(weapon_name_and_url)
+    # [print(weapon) for weapon in weapons]
+
 
     # add weapon CSV to character dict
     character_dict['Weapons'] = ', '.join(weapons)
 
-
-    ## WEAPON UPGRADES
-    # TODO will get weapon upgrades from Skill_Crawler
-    upgrades = weapons_marker.find_next('p')
-
-    if upgrades:
-        upgrade_image_list = upgrades.find_all("img")
-        upgrade_images = re.findall("https://[^ ]+", str(upgrade_image_list))
-
-        ## gets all of the upgrade info
-        # TODO split upgrade text sentences into list
-        # TODO extra spaces in upgrade test are image locations?
-        print(upgrades.text.strip())
-        print("Weapon Upgrade Icons:", upgrade_images, sep='\n')
-    else:
-        print("No weapon upgrades.")
+    # TODO Query_DB to check if skills are in db already
+    # TODO pass resulting search_list and url into weapon_scraper to collect weapon data
+    character_dict['Weapons Data'] = Query_DB.get_skills(weapon_name_and_url)
 
 
 
-    ## ASSISTS
+
+    #############################
+    #####  WEAPON UPGRADES  #####
+    #############################
+    # TODO will get weapon upgrades from Skill_Crawler instead
+
+
+
+
+    # TODO handle no assists to gather data
+    #####################
+    #####  ASSISTS  #####
+    #####################
     # locate ASSIST table
     assists_marker = soup.find(id="Assists")
     print()
@@ -211,7 +225,7 @@ def hero_crawler(url):
 
     # check if hero has ASSIST skills
     assists_table = assists_marker.find_next('div').text
-    if assists_table == "This Hero owns no Assist skills.":
+    if assists_table == "This unit owns no Assist skills.":     # website changed hero -> unit
         character_dict['Assists'] = None
         print(assists_table)
 
@@ -230,13 +244,18 @@ def hero_crawler(url):
                 assists.append(assists_data[0])    # we only want the names of character's assists
 
         # TODO debug msgs
-        [print(assist) for assist in assists]
+        # [print(assist) for assist in assists]
+        print(assists)
 
         character_dict['Assists'] = ', '.join(assists)
 
 
 
-    ## SPECIALS
+
+    # TODO handle no specials to gather data
+    ######################
+    #####  SPECIALS  #####
+    ######################
     # locate SPECIAL table
     specials_marker = soup.find(id="Specials")
     print()
@@ -244,7 +263,7 @@ def hero_crawler(url):
 
     # check if hero has SPECIAL skills
     specials_table = specials_marker.find_next('div').text
-    if specials_table == "This Hero owns no Special skills.":
+    if specials_table == "This unit owns no Special skills.":   # website changed hero -> unit
         character_dict['Specials'] = None
         print(specials_table)
 
@@ -265,7 +284,8 @@ def hero_crawler(url):
         # TODO debug msgs
         specials_label = [label.text for label in specials_table.find_all('th')]
         print(specials_label)
-        [print(special) for special in specials]
+        # [print(special) for special in specials]
+        print(specials)
 
         character_dict['Specials'] = ', '.join(specials)
 
@@ -273,7 +293,10 @@ def hero_crawler(url):
 
 
     # TODO did passive format change?
-    ## PASSIVES
+    # TODO handle no passives to gather data
+    ######################
+    #####  PASSIVES  #####
+    ######################
     # locate PASSIVES table
     passives_marker = soup.find(id="Passives")
     print()
@@ -284,7 +307,7 @@ def hero_crawler(url):
     # handle no passives case (fuck you masked marth)
     # check if hero has PASSIVE skills
     passives_table = passives_marker.find_next('div').text
-    if passives_table == "This hero owns no Passive skills.":   # why is 'Hero' lowercase here?!
+    if passives_table == "This unit owns no Passive skills.":   # website changed hero -> unit
         character_dict['Passives'] = None
         print(passives_table)
 
@@ -302,7 +325,7 @@ def hero_crawler(url):
             # print(passive_icon_images)
 
             # empty 1st element is skill image
-            passives_data = [data.text.strip() for data in passives_table_data if data.text is not '']
+            passives_data = [data.text.strip() for data in passives_table_data if data.text != '']
 
             if passives_data:
                 # passives.append(passives_data)  # gets all passive data
@@ -311,19 +334,22 @@ def hero_crawler(url):
 
         # prints label
         # TODO get headers only from first row?
-        print([label.text for label in passives_table.find_all('th') if label.text is not ''])
-        for passive in passives:
-            print(passive)
-
+        print([label.text for label in passives_table.find_all('th') if label.text != ''])
+        # for passive in passives:
+        #     print(passive)
+        print(passives)
         character_dict['Passives'] = ', '.join(passives)
 
 
+    print('\n\nCharacter Data')
+    {print(f'{key}: {value}') for key, value in character_dict.items()}
 
 
     # finally add character information to database
-    import Create_Database
-    Create_Database.create_database(character_dict)
+    # import Create_Database
+    # Create_Database.create_database(character_dict)
 
+hero_crawler('https://feheroes.gamepedia.com/Fir:_Sword_Student')
 
 
 ''' Useful Project Links:
@@ -352,12 +378,20 @@ https://feheroes.gamepedia.com/Celica:_Queen_of_Valentia
 Mythic:
 https://feheroes.gamepedia.com/Yune:_Chaos_Goddess
 
+No Passives:
+https://feheroes.gamepedia.com/Marth:_Enigmatic_Blade
+
+Overlapping Skill Name test:
+https://feheroes.gamepedia.com/Julia:_Naga%27s_Blood
+
 Additional tables:
 https://feheroes.gamepedia.com/Hero_skills_table
 https://feheroes.gamepedia.com/Level_40_stats_table
 https://feheroes.gamepedia.com/List_of_Heroes
 https://feheroes.gamepedia.com/Weapons
 https://feheroes.gamepedia.com/Weapons_(full)
+https://feheroes.gamepedia.com/List_of_upgradable_weapons
+https://feheroes.gamepedia.com/Category:Effective_weapons
 https://feheroes.gamepedia.com/Assists
 https://feheroes.gamepedia.com/Specials
 https://feheroes.gamepedia.com/Passives

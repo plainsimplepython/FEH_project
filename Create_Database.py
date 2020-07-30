@@ -2,6 +2,8 @@ import sqlite3
 
 
 # TODO remove drop table clauses
+# TODO add fail safe for skills don't have descriptions
+# TODO find cleaner way to insert data
 def create_database(data):
     '''
     Takes a character data dict and enters all character info into a database entry
@@ -129,7 +131,6 @@ def create_database(data):
 
     ## retrieve PK of last entry
     image_id = cursor.lastrowid
-    # print(image_id)
 
 
     # add character information to database
@@ -182,3 +183,18 @@ def create_database(data):
                                              passives))
 
     connection.commit()
+    cursor.close()
+    connection.close()
+
+
+# def update_skill():
+#     connection = sqlite3.connect('./FEH_characters2.db')
+#     cursor = connection.cursor()
+#
+#     cursor.execute('''SELECT * FROM Character''')
+#     result = cursor.fetchall()
+#     print('Total rows are:', len(result))
+#     for i in result:
+#         print(i)
+#
+# update_skill()

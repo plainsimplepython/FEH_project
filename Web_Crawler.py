@@ -63,6 +63,7 @@ while not hero_list.empty():
 
 
 # TODO skill crawler
+# TODO get list of skill 'links' and 'names' to pass to passives_scraper()
 ## TODO move into passive web crawler code
 # table_markers = soup.find_all(class_="mw-headline")
 # passive_table = table_markers[0].find_next('table')
