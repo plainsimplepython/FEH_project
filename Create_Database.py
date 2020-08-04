@@ -4,6 +4,9 @@ import sqlite3
 # TODO remove drop table clauses
 # TODO add fail safe for skills don't have descriptions
 # TODO find cleaner way to insert data
+
+# TODO add separate categories for passives (A, B ,C)
+# TODO add skill data
 def create_database(data):
     '''
     Takes a character data dict and enters all character info into a database entry
@@ -15,6 +18,7 @@ def create_database(data):
     # cursor.execute('DROP TABLE IF EXISTS Character')
     try:
         cursor.execute('''CREATE TABLE Character (id INTEGER PRIMARY KEY,
+                                                  icon TEXT,
                                                   name TEXT,
                                                   title TEXT,
                                                   image_id INT UNIQUE,
@@ -28,6 +32,7 @@ def create_database(data):
                                                   pair_up TEXT,
                                                   weapon_type TEXT,
                                                   move_type TEXT,
+                                                  entry TEXT,
                                                   hp TEXT,
                                                   atk TEXT,
                                                   spd TEXT,
@@ -37,7 +42,9 @@ def create_database(data):
                                                   weapons TEXT,
                                                   assists TEXT,
                                                   specials TEXT,
-                                                  passives TEXT,
+                                                  a_passives TEXT,
+                                                  b_passives TEXT,
+                                                  c_passives TEXT,
                                                   FOREIGN KEY (image_id) REFERENCES Character_Images (image_id))''')
     except sqlite3.OperationalError:
         pass
@@ -46,14 +53,17 @@ def create_database(data):
     # cursor.execute('DROP TABLE IF EXISTS Character_Images')
     try:    # TODO compress image table into CSV string?
         cursor.execute('''CREATE TABLE Character_Images (image_id INTEGER PRIMARY KEY,
-                                                      portrait TEXT,
-                                                      attack TEXT, 
-                                                      special TEXT,
-                                                      injured TEXT)''')
+                                                         portrait TEXT,
+                                                         attack TEXT, 
+                                                         special TEXT,
+                                                         injured TEXT)''')
     except sqlite3.OperationalError:
         pass
 
 
+
+    # TODO Icon
+    icon = data.get('Icon')
 
     # Name and Title
     name = data.get('Name')[0]
@@ -100,6 +110,9 @@ def create_database(data):
     weapon_type = data.get('Weapon Type')
     move_type = data.get('Move Type')
 
+    # TODO entry
+    entry = data.get('Entry')
+
     # Stats
     stats = data.get('Stats')
     char_hp = stats.get('HP')
@@ -113,7 +126,22 @@ def create_database(data):
     weapons = data.get('Weapons')
     assists = data.get('Assists')
     specials = data.get('Specials')
-    passives = data.get('Passives')
+    # TODO split passives (A, B, C)
+    a_passives = data['Passives'].get('A Passives')
+    b_passives = data['Passives'].get('B Passives')
+    c_passives = data['Passives'].get('C Passives')
+
+    # TODO weapon data
+
+    # TODO assist data
+
+    # TODO special data
+
+    # TODO A Passive Data
+
+    # TODO B Passive Data
+
+    # TODO C Passive Data
 
 
 
@@ -134,7 +162,8 @@ def create_database(data):
 
 
     # add character information to database
-    cursor.execute('''INSERT INTO Character (name, 
+    cursor.execute('''INSERT INTO Character (icon,
+                                             name, 
                                              title,
                                              image_id,
                                              description, 
@@ -147,6 +176,7 @@ def create_database(data):
                                              pair_up, 
                                              weapon_type, 
                                              move_type,
+                                             entry,
                                              hp, 
                                              atk, 
                                              spd, 
@@ -156,9 +186,12 @@ def create_database(data):
                                              weapons,
                                              assists,
                                              specials,
-                                             passives)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
-                                            (name,
+                                             a_passives,
+                                             b_passives,
+                                             c_passives)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)''',
+                                            (icon,
+                                             name,
                                              title,
                                              image_id,
                                              description,
@@ -171,6 +204,7 @@ def create_database(data):
                                              pair_up,
                                              weapon_type,
                                              move_type,
+                                             entry,
                                              char_hp,
                                              char_atk,
                                              char_spd,
@@ -180,21 +214,12 @@ def create_database(data):
                                              weapons,
                                              assists,
                                              specials,
-                                             passives))
+                                             a_passives,
+                                             b_passives,
+                                             c_passives))
+
+    # TODO insert skill data
 
     connection.commit()
     cursor.close()
     connection.close()
-
-
-# def update_skill():
-#     connection = sqlite3.connect('./FEH_characters2.db')
-#     cursor = connection.cursor()
-#
-#     cursor.execute('''SELECT * FROM Character''')
-#     result = cursor.fetchall()
-#     print('Total rows are:', len(result))
-#     for i in result:
-#         print(i)
-#
-# update_skill()

@@ -11,7 +11,9 @@ import re
 from Skill_Data_Scraper import weapon_scraper
 
 
-def hero_crawler(url):
+# TODO split hero name and title into separate keys?
+# TODO get hero table icon
+def hero_crawler(hero_icon, url):
     # Ignore SSL certificate errors
     ctx = ssl.create_default_context()
     ctx.check_hostname = False
@@ -24,7 +26,8 @@ def hero_crawler(url):
 
     ''' 
     hero info dict keys:
-        Name (& title)
+        Icon
+        Name (& title)                  - [<name>, <title>]
         Images (Portrait, Attack, Special, Injured) 3 sizes for each
         Description
         Rarities
@@ -39,20 +42,25 @@ def hero_crawler(url):
         Voice Actor EN
         Voice Actor JP
         Release Date
-        Appears in
+        Entry
         Internal ID
         Origin
         
         Stats
         Weapons
+        Weapons Data
         Assists
+        Assists Data
         Specials
-        Passives
+        Specials Data
+        Passives                        {'A Passives': {}, 'B Passives': {}, 'C Passives': {}}
+        Passives Data
     '''
     hero_info_table = soup.find('table', class_="wikitable hero-infobox")
     character_data = hero_info_table.find_all('tr')
 
-    character_dict = {}
+    character_dict = {'Icon': hero_icon}
+
     for i, data in enumerate(character_data):
         ## NAME and TITLE don't have a proper label
         if i == 0:
@@ -158,8 +166,6 @@ def hero_crawler(url):
 
 
 
-    # TODO get weapon name links (href), some links differ from weapon name (in cases of overlapping names)
-    # TODO pass both weapon link and name to weapon_scraper()
     #####################
     #####  WEAPONS  #####
     #####################
@@ -199,9 +205,8 @@ def hero_crawler(url):
     # add weapon CSV to character dict
     character_dict['Weapons'] = ', '.join(weapons)
 
-    # TODO Query_DB to check if skills are in db already
-    # TODO pass resulting search_list and url into weapon_scraper to collect weapon data
-    character_dict['Weapons Data'] = Query_DB.get_skills(weapon_name_and_url)
+    # get weapon data
+    character_dict['Weapons Data'] = Query_DB.get_skills(weapon_name_and_url, 'Weapons')
 
 
 
@@ -233,6 +238,7 @@ def hero_crawler(url):
     else:
         assists_table = assists_marker.find_next('table')
         assists = []
+        assists_name_and_url = []
 
         for row in assists_table.find_all('tr'):
             assists_table_data = row.find_all('td')
@@ -242,12 +248,18 @@ def hero_crawler(url):
             if len(assists_data) != 0:
                 # assists.append(assists_data)  # gets all assist data
                 assists.append(assists_data[0])    # we only want the names of character's assists
+                assists_name_and_url.append( (assists_data[0], row.find('a')['href']) )  # get assist links, currently same as name, may change in the future
+
 
         # TODO debug msgs
-        # [print(assist) for assist in assists]
+        # [print(assist) for assist in assists] # prints in separate rows
         print(assists)
 
+        # add list of character's assists to dict
         character_dict['Assists'] = ', '.join(assists)
+
+        # get assist data
+        character_dict['Assists Data'] = Query_DB.get_skills(assists_name_and_url, 'Assists')
 
 
 
@@ -271,6 +283,7 @@ def hero_crawler(url):
     else:
         specials_table = specials_marker.find_next('table')
         specials = []
+        specials_name_and_url = []
 
         for row in specials_table.find_all('tr'):
             specials_table_data = row.find_all('td')
@@ -280,6 +293,7 @@ def hero_crawler(url):
             if len(specials_data) != 0:
                 # specials.append(specials_data)  # gets all specials data
                 specials.append(specials_data[0])  # we only want the names of the character's specials
+                specials_name_and_url.append((specials_data[0], row.find('a')['href']))  # get special links, currently same as name, may change in the future
 
         # TODO debug msgs
         specials_label = [label.text for label in specials_table.find_all('th')]
@@ -287,12 +301,13 @@ def hero_crawler(url):
         # [print(special) for special in specials]
         print(specials)
 
+        # add list of character's specials to dict
         character_dict['Specials'] = ', '.join(specials)
+        # get special data
+        character_dict['Specials Data'] = Query_DB.get_skills(specials_name_and_url, 'Specials')
 
 
 
-
-    # TODO did passive format change?
     # TODO handle no passives to gather data
     ######################
     #####  PASSIVES  #####
@@ -313,32 +328,83 @@ def hero_crawler(url):
 
     # retrieving them if they exist
     else:
+        character_dict['Passives'] = {}
+        character_dict['Passives Data'] = {}
         passives_table = passives_marker.find_next('table')
 
         passives = []
-        for row in passives_table.find_all('tr'):
-            passives_table_data = row.find_all('td')
+        passives_name_and_url = []
+        passive_type = 'A'
 
-            # TODO get passive skill icons?
-            # passive_icons_raw = row.find_all("img")
-            # passive_icon_images = re.findall("https://[^ ]+", str(passive_icons_raw))
-            # print(passive_icon_images)
+        # TODO split passives by 'type' element after collecting data instead of before?
+        # TODO turn character passives array into CSV string
+        passive_table_rows = [row for row in passives_table.find_all('tr')]
+        for row in passive_table_rows[1: ]:
+            # TODO condense with last row check, make into an inner helper function?
+            if row.find('th'):
+                # if we hit a new set of passives in the table add the '<type> passive' group to the 'Passives' dict
+                if passive_type != row.find('th').text and passives is not None:
+                    passive_type_key = f'{passive_type} Passives'
+                    passives_string = ', '.join(passives)
 
-            # empty 1st element is skill image
-            passives_data = [data.text.strip() for data in passives_table_data if data.text != '']
+                    character_dict['Passives'].update({passive_type_key : passives_string})
+                    character_dict['Passives Data'].update({passive_type_key : Query_DB.get_skills(passives_name_and_url, passive_type_key.replace(' ', '_'))})
+                    print(f'\t{passive_type_key}: {passives}')
+                    # print(passives_name_and_url)
 
-            if passives_data:
-                # passives.append(passives_data)  # gets all passive data
-                passives.append(passives_data[0])  # we only want the names of character's skills
+                    # clear passive list for new set of passives and get new passive type
+                    passives = []
+                    passives_name_and_url = []
+                    passive_type = row.find('th').text.strip()
+
+            # get only the passive names
+            passives_data = [data.text.strip() for data in row.find_all('td')[1: ]]
+            passives.append(passives_data[0])
+            # TODO get passive urls
+            # passives_name_and_url.append((passives_data[0], row.find_all('a')[1]['href']))
+            passives_name_and_url.append((passives_data[0], row.find('a', title=True)['href']))
 
 
-        # prints label
+            # TODO clunky way of getting the last set of passives, make into an inner helper function?
+            if row == passive_table_rows[-1]:
+                passive_type_key = f'{passive_type} Passives'
+                passives_string = ', '.join(passives)
+
+                character_dict['Passives'].update({passive_type_key: passives_string})
+                character_dict['Passives Data'].update({passive_type_key: Query_DB.get_skills(passives_name_and_url, passive_type_key.replace(' ', '_'))})
+
+                print(f'\t{passive_type_key}: {passives}')
+                # print(passives_name_and_url)
+
+
+
+
+            # # get Passive Type (A, B or C)
+            # if row.find('th'):
+            #     passive_type = row.find('th').text
+            #     print('passive type:', passive_type)
+
+            # # TODO split passives into separate groups
+            # passives_table_data = row.find_all('td')
+            #
+            # # first 'td' column is an image, so skip it
+            # passives_data = [data.text.strip() for data in passives_table_data if data.text != '']
+            # print(passives_data)
+            #
+            #
+            # if passives_data:
+            #     # passives.append(passives_data)  # gets all passive data
+            #     passives.append(passives_data[0])  # we only want the names of character's skills
+            #     # TODO get passive url and type
+
+        ## prints label
         # TODO get headers only from first row?
-        print([label.text for label in passives_table.find_all('th') if label.text != ''])
-        # for passive in passives:
-        #     print(passive)
-        print(passives)
-        character_dict['Passives'] = ', '.join(passives)
+        # print([label.text for label in passives_table.find_all('th') if label.text != ''])
+        # # for passive in passives:
+        # #     print(passive)
+        # print(passives)
+        # character_dict['Passives'] = ', '.join(passives)
+        # TODO get passive data with passive NAME, URL and TYPE
 
 
     print('\n\nCharacter Data')
@@ -346,10 +412,10 @@ def hero_crawler(url):
 
 
     # finally add character information to database
-    # import Create_Database
-    # Create_Database.create_database(character_dict)
+    import Create_Database
+    Create_Database.create_database(character_dict)
 
-hero_crawler('https://feheroes.gamepedia.com/Fir:_Sword_Student')
+hero_crawler('https://gamepedia.cursecdn.com/feheroes_gamepedia_en/thumb/d/dd/Micaiah_Dawn_Winds_Duo_Face_FC.webp/75px-Micaiah_Dawn_Winds_Duo_Face_FC.webp.png?version=80ec85e9bea94f3ffb2b163aa55301a2', 'https://feheroes.gamepedia.com/Micaiah:_Dawn_Wind%27s_Duo')
 
 
 ''' Useful Project Links:

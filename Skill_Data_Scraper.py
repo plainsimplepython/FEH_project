@@ -9,6 +9,7 @@ ctx = ssl.create_default_context()
 ctx.check_hostname = False
 ctx.verify_mode = ssl.CERT_NONE
 
+# TODO reduce redundancy of checking headers then getting them again and assigning them
 # TODO merge assist/special after handling multiple 'cannot use' images links
 # is 'Can Use' only for 'Staff' units? -> turn into 'Staff Only'?
 # TODO create separate categories for Staff and Dancer?
@@ -17,9 +18,11 @@ ctx.verify_mode = ssl.CERT_NONE
 
 
 
+# restriction: 'Exclusive' -> ['Exclusive']?
 #####################
 #####  WEAPONS  #####
 #####################
+# TODO evolved only skills? (slayer, smasher)
 # TODO exclude umbra weapons
 # TODO get effectiveness bonuses
 def weapon_scraper(weapon_name_and_url):
@@ -29,6 +32,7 @@ def weapon_scraper(weapon_name_and_url):
             Weapon type:    <string>
             Might:          <string>
             Range:          <string>
+            Effectiveness:  TODO
             Required:       <string>
             SP:             <string>
             Restrictions:   <string>
@@ -73,6 +77,26 @@ def weapon_scraper(weapon_name_and_url):
             weapon_type = data.find('th').text.strip()
             weapon_dict[weapon_type] = data.find('a')['title']
 
+        # weapon requirements
+        elif data.find('th').text.strip() == 'Required':
+            key = data.find('th').text.strip()
+            value = []
+
+
+            requirement_links = data.find_all('a')
+            # check if weapon links exists in 'Required' row
+            if requirement_links:
+                # grab all possible requirements
+                for requirement in requirement_links:
+                    value.append(requirement.text.strip())
+
+            # if weapon has no requirements return '—' instead
+            else:
+                value.append(data.find('td').text.strip())
+
+            weapon_dict[key] = value
+
+
         # TODO weapon effectiveness bonuses (wait for them to finish the format?)
         # elif data.find('th').text.strip() == 'Effectiveness':
         #     for image in data.find_all("img"):
@@ -81,6 +105,7 @@ def weapon_scraper(weapon_name_and_url):
 
         # weapon exclusive or not?
         elif 'Exclusive' in data.find('th').text.strip():
+            # turn exclusive into restrictions and value from 'yes'/'no' -> 'exclusive'/null?
             key = 'Restrictions'
             value = None
             if data.find('td').text.strip() == 'Yes':
@@ -90,7 +115,7 @@ def weapon_scraper(weapon_name_and_url):
 
             weapon_dict[key] = value
 
-        # TODO turn exclusive into restrictions and value from 'yes'/'no' -> 'exclusive'/null?
+        # Everything else within info table
         else:
             key = None
             if data.find('th'):
@@ -182,6 +207,7 @@ def weapon_scraper(weapon_name_and_url):
         if i != 0:
             # temp_list = [] TODO remove
             owner_data = owner_list_row.find_all(text=True)
+            hero_rarity = tuple()
 
             # zipping owner data, which is one single list of data that's supposed to be grouped by pairs
             acquisition_tuples = list(zip(owner_data[1:-1:2], owner_data[2::2]))
@@ -191,32 +217,42 @@ def weapon_scraper(weapon_name_and_url):
                     hero_rarity = owner_data[0], acquisition_tuple[1]
                     # temp_list.append(hero_rarity) TODO remove
 
-            skill_owners.append(hero_rarity)
+            # leave list of owners empty if none found
+            if hero_rarity:
+                skill_owners.append(hero_rarity)
+            else:
+                continue
+
     # print(skill_owners)
     weapon_dict['List of Owners'] = skill_owners
     print(weapon_dict)
-    # notes?
-    # languages?
+
     return weapon_dict
 
 
-# weapon_scraper(('Naga',"/Naga_(tome)"))  # TODO for debugging
+# weapon_scraper(('Armorsmasher%2B',"/Armorsmasher%2B"))  # TODO for debugging
 '''TESTS 
 ('Falchion',"/Falchion_(Awakening)")
 ('Killing Edge+',"/Killing_Edge+")
 ('Slaying Edge+',"/Slaying_Edge+")
 ('Naga',"/Naga_(tome)")
+('Armorsmasher%2B',"/Armorsmasher%2B")
 '''
 
 
+# TODO restriction: 'Exclusive' -> ['Exclusive']?
+# TODO fix list of owners
 #####################
 #####  ASSISTS  #####
 #####################
-def assist_scraper(assist_name):
+def assist_scraper(assist_name_and_url):
+    assist_name, assist_url = assist_name_and_url
+
     # create base url link
-    base_url = 'https://feheroes.gamepedia.com/'
+    base_url = 'https://feheroes.gamepedia.com'
     # clean up weapon name format?
-    name = assist_name.replace(' ', '_')
+    # name = assist_name.replace(' ', '_')
+    name = assist_url
     # join with weapon name
     url = base_url + name
 
@@ -257,7 +293,17 @@ def assist_scraper(assist_name):
 
         # row 2 has skill data
         if i == 1:
-            table_data = [row_two_data.text.strip() for row_two_data in row.find_all('td')]
+            # table_data = [row_two_data.text.strip() for row_two_data in row.find_all('td')]
+
+            for assist_data in row.find_all('td'):
+                # multiple requirement skills lead to two different skills and are stored as links
+                if assist_data.find_all('a'):
+                    required_list = [required_links.text for required_links in assist_data.find_all('a')]
+                    table_data.append(', '.join(required_list))
+                # required skills from the same skill chain are plain text
+                else:
+                    table_data.append(assist_data.text.strip())
+
             # print(table_data)
 
         # row 3 has weapon/move type and exclusive restrictions
@@ -286,8 +332,9 @@ def assist_scraper(assist_name):
     # print(assist_dict)
 
 
-
-    # list of owners
+    ####################################
+    #####  ASSIST: LIST OF OWNERS  #####
+    ####################################
     owner_list_marker = soup.find(id='List_of_owners')
     skill_owners = []
     owner_list_table = owner_list_marker.find_next('table')
@@ -297,33 +344,43 @@ def assist_scraper(assist_name):
         # create (skill, rarity) tuples
         # TODO identify which is skill in question and which are part of the skill chain
         if i != 0:
-            temp_list = []
+            # temp_list = [] # TODO remove
             # print([owner.text.strip() for owner in owner_list_row])
             owner_data = owner_list_row.find_all(text=True)
-            temp_list.append(owner_data[0])
+            hero_rarity = tuple()
+            # temp_list.append(owner_data[0])   # TODO remove
 
+            # skip first element, the character's name
             acquisition_tuples = list(zip(owner_data[1:-1:2], owner_data[2::2]))
             for acquisition_tuple in acquisition_tuples:
-                temp_list.append(acquisition_tuple)
+                if acquisition_tuple[0] in assist_name:
+                    hero_rarity = owner_data[0], acquisition_tuple[1]
+                # temp_list.append(acquisition_tuple)
 
-            skill_owners.append(temp_list)
-    # print(skill_owners)
+            # leave list of owners empty if none found
+            if hero_rarity:
+                skill_owners.append(hero_rarity)
+            else:
+                continue
+            # skill_owners.append(temp_list)
+
     assist_dict['List of Owners'] = skill_owners
 
 
     {print(f'{key}: {value}') for key, value in assist_dict.items()}
     return assist_dict
 
-    # notes?
-# assist_scraper('Ardent_Sacrifice') # TODO for debugging
+# assist_scraper(('Rally Atk/Res', '/Rally_Atk_Res')) # TODO for debugging
 
 
 
+# TODO restriction: 'Exclusive' -> ['Exclusive']?
 # TODO exclude umbra specials
+# TODO fix list of owners
 ######################
 #####  SPECIALS  #####
 ######################
-def special_scraper(special_name):
+def special_scraper(special_name_and_url):
     '''
     Dict Keys:
             Name:
@@ -336,10 +393,13 @@ def special_scraper(special_name):
             List of Owners: (nested lists)
     '''
 
+    special_name, special_url = special_name_and_url
+
     # create base url link
-    base_url = 'https://feheroes.gamepedia.com/'
+    base_url = 'https://feheroes.gamepedia.com'
     # clean up weapon name format?
-    name = special_name.replace(' ', '_')
+    # name = special_name.replace(' ', '_')
+    name = special_url
     # join with weapon name
     url = base_url + name
 
@@ -379,9 +439,11 @@ def special_scraper(special_name):
             # table_data = [row_two_data.text.strip() for row_two_data in row.find_all('td')]
 
             for row_two_data in row.find_all('td'):
+                # multiple requirement skills lead to two different skills and are stored as links
                 if row_two_data.find_all('a'):
                     required_list = [required_links.text for required_links in row_two_data.find_all('a')]
                     table_data.append(', '.join(required_list))
+                # required skills from the same skill chain are plain text
                 else:
                     table_data.append(row_two_data.text.strip())
                 # print(table_data)
@@ -417,9 +479,12 @@ def special_scraper(special_name):
 
     # {print(f'{key}: {value}') for key, value in special_dict.items()}
 
-    # list of owners
+    #####################################
+    #####  SPECIAL: LIST OF OWNERS  #####
+    #####################################
     owner_list_marker = soup.find(id='List_of_owners')
 
+    # TODO exclude umbra skills
     # check if skill has any owners, by checking if there's <p> text (having to strip extra spaces) saying there's no owners
     skill_has_no_owners = owner_list_marker.find_next('p')
     if skill_has_no_owners:
@@ -441,11 +506,15 @@ def special_scraper(special_name):
                 owner_data = owner_list_row.find_all(text=True)
                 temp_list.append(owner_data[0])
 
+                hero_rarity = tuple()
                 acquisition_tuples = list(zip(owner_data[1:-1:2], owner_data[2::2]))
                 for acquisition_tuple in acquisition_tuples:
-                    temp_list.append(acquisition_tuple)
+                    if acquisition_tuple[0] in special_name:
+                        hero_rarity = owner_data[0], acquisition_tuple[1]
+                    # temp_list.append(acquisition_tuple)
 
-                skill_owners.append(temp_list)
+                skill_owners.append(hero_rarity)
+                # skill_owners.append(temp_list)
 
 
     special_dict['List of Owners'] = skill_owners
@@ -454,7 +523,7 @@ def special_scraper(special_name):
     return special_dict
 
     # notes?
-# special_scraper('Glacies') # TODO for debugging
+# special_scraper(('Radiant Aether', '/Radiant_Aether')) # TODO for debugging
 
 '''
 # classify specials similar to table at bottom of page? 
@@ -462,84 +531,91 @@ https://feheroes.gamepedia.com/Galeforce
 '''
 
 
-# TODO passives
-def passives_scraper(url, skill_name):
+
+######################
+###### PASSIVES ######
+######################
+def passives_scraper(passive_name_and_url):
     '''
     Dict Keys:
             Type:
-            Icon: # TODO
+            Icon:
             Name:
             SP:
-            Required: # TODO handle multiple possible requirements
+            Required:
             Description:
             # Exclusive:
             Restrictions: (String, List, or None)
             List of Owners: (nested lists)
     '''
+
+    passive_name, passive_url = passive_name_and_url
+
+    # create base url link
+    base_url = 'https://feheroes.gamepedia.com'
+    name = passive_url
+    # join with weapon name
+    url = base_url + name
+
     # url = input('Enter passive url - ')
     # url = 'https://feheroes.gamepedia.com/Passives'
     html = urlopen(url, context=ctx).read()
     soup = BeautifulSoup(html, "html.parser")
 
     passive_table = soup.find(class_="wikitable default skills-table")
-    # print(passive_table)
 
     passives_dict = {}
 
 
-    ## get following from Passives table
-    # type
-    # TODO icon
-    # name
-    # description
-    # sp
-    # required
-    ## info found from individual skill links
-    # skill chain?
     # get table headers
     passive_table_headers = passive_table.find_all('th')
     passive_table_headers_list = [header.text.strip() for header in passive_table_headers[1:-1]]
     # [print(header.text.strip()) for header in passive_table_headers]
     # print(passive_table_headers_list)
     # print()
-
     passives_dict[passive_table_headers[0].text.strip()] = passive_table_headers[-1].text.strip()
 
     passive_table_rows = passive_table.find_all('tr')
-    # print(passive_table_rows[1:-1])
-    skill_data = []
+    skill_list = []
+    # go through each row of skills of the skill table, first row  is skill headers, last row is skill restrictions
     for row in passive_table_rows[1:-1]:
-        skill_data.append([row_data.text.strip() for row_data in row.find_all('td')])
-    # print(skill_data)
+        skill_data = []
+        # collect column data of each skill row
+        row_data = [column for column in row.find_all('td')]
+        for i, column in enumerate(row_data):
+            # first column has skill icon
+            if i == 0:
+                skill_data.append(row.find('img')['src'])
 
-    for skill in skill_data:
-        if skill[1] == skill_name:
+            # skill requirements need to be handled differently for single req vs multiple req
+            elif i == 3:
+                # multiple requirement skills lead to two different skills and are stored as links
+                if column.find_all('a'):
+                    required_list = [required_links.text.strip() for required_links in column.find_all('a')]
+                    skill_data.append(', '.join(required_list))
+                # required skills from the same skill chain are plain text
+                else:
+                    skill_data.append(column.text.strip())
+
+            else:
+                skill_data.append(column.text.strip())
+
+        skill_list.append(skill_data)
+
+
+    # skill list contains data of ALL skills of the skill chain, we only want the one passed to the function
+    for skill in skill_list:
+        # 2nd element has skill name, which we're going to use to identify the skill we're searching for
+        if skill[1] == passive_name:
             for key, value in zip(passive_table_headers_list, skill):
                 passives_dict[key] = value
-            # print(skill)
 
-
-
-
-
-    # getting headers from table
-    # passive_table_headers = passive_table_rows[0].find_all('th')
-    # passive_table_headers = passive_table.find_all('th')
-    # [print(header.text.strip()) for header in passive_table_headers]
-    # print()
-
-    # get passive slot type (A, B, C)
-    # passive_table_headers = passive_table_rows[1].find_all('th')
-    # passive_table_headers = passive_table.find_all('th')
-    # [print(header.text.strip()) for header in passive_table_headers]
-    # print()
 
     passive_table_data = passive_table.find_all('td')
     passive_data_list = passive_table_data[1:-1]
     # print(passive_data_list)
     # get individual passive data
     # passive_data_list = passive_table.find_all('td')[1:-1]
-    # TODO hybrid requirements need to be split
     passive_skills = [data.text.strip() for data in passive_data_list if data.text.strip() != '']
     # print(passive_skills)
 
@@ -548,8 +624,7 @@ def passives_scraper(url, skill_name):
     # print()
     # print(passive_restrictions.text)
 
-    # exclusive tells if skill can be inherited or not
-    # exclusive = 'No'
+
     # labels any restrictions that apply to skill
     restrictions = ''
 
@@ -575,7 +650,9 @@ def passives_scraper(url, skill_name):
 
 
 
-    # list of owners
+    #####################################
+    #####  PASSIVE: LIST OF OWNERS  #####
+    #####################################
     owner_list_marker = soup.find(id='List_of_owners')
 
     # check if skill has any owners, by checking if there's <p> text (having to strip extra spaces) saying there's no owners
@@ -599,49 +676,27 @@ def passives_scraper(url, skill_name):
             owner_data = owner_list_row.find_all(text=True)
             temp_list.append(owner_data[0])
 
+            hero_rarity = tuple()
             acquisition_tuples = list(zip(owner_data[1:-1:2], owner_data[2::2]))
             for acquisition_tuple in acquisition_tuples:
-                temp_list.append(acquisition_tuple)
+                if acquisition_tuple[0] in passive_name:
+                    hero_rarity = owner_data[0], acquisition_tuple[1]
+                    # temp_list.append(acquisition_tuple)
 
-            skill_owners.append(temp_list)
+                    skill_owners.append(hero_rarity)
+            # skill_owners.append(temp_list)
 
     # print(skill_owners)
     passives_dict['List of Owners'] = skill_owners
 
 
     # print(passives_dict)
-    {print(f'{key}: {value}') for key, value in passives_dict.items()}
+    # print()
+    # {print(f'{key}: {value}') for key, value in passives_dict.items()}
     return passives_dict
 
 
-
-    # notes?
-
-    # TODO TEST
-    ## TODO dance/sing skill?
-    ## TODO regular skill
-    ## TODO single skill in skill line
-    ## skill that only has itself in skill line
-    ## exclusive skill
-    ## TODO skill with multiple restrictions
-    ## TODO skill with one restriction
-    ## TODO staff only skill
-    # noinspection PyUnreachableCode
-    '''TEST LINKS
-        # regular skill/picking out single skill in skill line
-        https://feheroes.gamepedia.com/Atk_Def_Form
-        
-        # exclusive skill/skill with only one skill in skill line
-        https://feheroes.gamepedia.com/Ostian_Counter
-        
-        # single restrictions
-        https://feheroes.gamepedia.com/Life_and_Death
-        
-        # multiple restrictions
-        https://feheroes.gamepedia.com/Flashing_Blade
-        
-        # staff only
-        https://feheroes.gamepedia.com/Live_to_Serve'''
+# passives_scraper(('Atk/Res Push 3', '/Atk_Res_Push'))
 # passives_scraper("Atk/Def Form 2")
 # passives_scraper("Ostian Counter")
 

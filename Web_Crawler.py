@@ -13,7 +13,7 @@ urls to the Hero_Crawler to scrape the information we want.
 
 
 HERO_LIST_URL = 'https://feheroes.gamepedia.com/List_of_Heroes'
-BASE_URL = 'https://feheroes.gamepedia.com/'
+BASE_URL = 'https://feheroes.gamepedia.com'
 
 
 # TODO get hero icons
@@ -30,18 +30,34 @@ soup = BeautifulSoup(html, "html.parser")
 hero_list_table = soup.find('table')
 hero_list_text_raw = [links.text for links in hero_list_table.find_all('a', title=True)]
 
+# get hero icons
+hero_table_rows = [row for row in hero_list_table.find_all('tr')]
 hero_list = Queue()
+
+
+for row in hero_table_rows[1: ]:
+    row_links = row.find_all('a')
+    hero_icon = row.find('img')['src']
+    hero_url = row_links[0]['href']
+
+    hero_icon_and_url = hero_icon, hero_url
+    print(hero_icon_and_url)
+
+    hero_list.put(hero_icon_and_url)
+
+# print(hero_list_icons)
+
 # character name text is only labeled by 'href' links,
 # but that also includes other links we need to filter
-filter_list = ['Fire Emblem', 'Special', 'Story', 'Tempest Trials', 'Grand Hero Battle', 'Mythic', 'Legendary', 'Tokyo Mirage']
+# filter_list = ['Fire Emblem', 'Special', 'Story', 'Tempest Trials', 'Grand Hero Battle', 'Mythic', 'Legendary', 'Tokyo Mirage']
 
 # create list of all characters in game
-for hero in hero_list_text_raw:
-    if not any(filter_term in hero for filter_term in filter_list) and hero is not '':
-        hero_list.put(hero)
-
-# TODO debug msg
-print(list(hero_list.queue))
+# for hero in hero_list_text_raw:
+#     if not any(filter_term in hero for filter_term in filter_list) and hero != '':
+#         hero_list.put(hero)
+#
+# # TODO debug msg
+# print(list(hero_list.queue))
 
 
 while not hero_list.empty():
@@ -52,13 +68,13 @@ while not hero_list.empty():
     '''
 
     # website uses '_' for urls instead of spaces or url '+'s
-    hero_url = hero_list.get().replace(' ', '_')
+    hero_icon, hero_url = hero_list.get()
     # construct full url
-    full_url = BASE_URL + quote_plus(hero_url)
+    full_url = BASE_URL + hero_url
     print(full_url)
 
     # have hero_crawler scrape the data from the character page
-    hero_crawler(full_url)
+    # hero_crawler(hero_icon, full_url)
 
 
 
